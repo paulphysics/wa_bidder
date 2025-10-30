@@ -2,7 +2,6 @@ import os
 import pickle
 import random
 import time
-import traceback
 from datetime import datetime
 
 from selenium import webdriver
@@ -13,242 +12,193 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-
 # ==========================================================
 # CONFIGURATION
 # ==========================================================
-SITE_URL = "https://writer.writersadmin.com/orders/available"
-PROFILE_PATH = r"C:\selenium\writersadmin_profile"
+
+SITE_URL = "https://employer.writersadmin.com/orders"
+PROFILE_BASE_DIR = os.path.expanduser(r"~\selenium_bid_bot_profiles")
+
+# --- Define all profiles and messages ---
+PROFILES = {
+    "Wamboo": [
+        "Hi! I’m very interested in working on this order. I have strong experience in similar tasks and always ensure timely delivery with well-researched, high-quality content. Kindly consider my bid.",
+        "Hello! I’m confident in delivering an exceptional, plagiarism-free paper that meets all instructions. I always maintain clear formatting and proper referencing. Looking forward to your approval!",
+        "Hi there! I’m skilled at producing professional and original work with a strong focus on clarity, structure, and academic integrity. I’d be happy to complete this order promptly.",
+        "Greetings! I’ve handled similar assignments successfully, ensuring high-quality, properly referenced, and plagiarism-free papers. Please consider my bid.",
+        "Hello! I deliver high-quality and well-researched work that adheres to all client guidelines. You can rely on me for accuracy, originality, and timely delivery.",
+        "Hi! I always ensure professional writing, originality, and proper formatting in every task. I’d love to assist with this order and guarantee excellent results.",
+        "Hello! I’ve worked on similar papers before and consistently delivered top-quality content. I’m ready to start immediately and meet your deadline.",
+        "Greetings! My experience and attention to detail ensure that all client requirements are met. I can guarantee accuracy, coherence, and high-quality results."
+    ],
+
+    "Python": [
+        "Hi! I’m ready to handle this task with attention to detail and deliver original, high-quality work on time. My background in data-driven writing ensures clear and logical content.",
+        "Hello! I specialize in structured and evidence-based academic writing. I’ll provide a thoroughly researched, plagiarism-free paper that meets every instruction.",
+        "Hi! I focus on clarity, precision, and academic integrity. I ensure all papers are well-organized, properly referenced, and tailored to the client’s needs.",
+        "Greetings! I have a strong record of delivering polished, accurate, and timely assignments. I’ll make sure this project meets the highest quality standards.",
+        "Hello! I’m confident in delivering exceptional results for this order. My writing is concise, professional, and supported by credible sources.",
+        "Hi! I pay close attention to guidelines and always ensure perfect formatting and referencing. I’m committed to quality and timeliness.",
+        "Hello there! I bring analytical thinking and a structured approach to each task, ensuring coherence and originality. I’d love to work on this order.",
+        "Greetings! I’m experienced in producing academic and technical content that meets all client expectations. Quality and accuracy are always my top priorities."
+    ]
+}
+
+# --- Build dynamic profile directories ---
+PROFILE_DIRS = {name: os.path.join(PROFILE_BASE_DIR, name) for name in PROFILES.keys()}
+
+# Randomly select a profile at startup
+PROFILE_NAME = random.choice(list(PROFILES.keys()))
+PROFILE_PATH = PROFILE_DIRS[PROFILE_NAME]
+MESSAGES = PROFILES[PROFILE_NAME]
 COOKIES_FILE = os.path.join(PROFILE_PATH, "cookies.pkl")
-CHECK_INTERVAL = (30, 45)
-AUTO_BID = True
-MAX_RETRIES = 3  # retry attempts before restarting Chrome
 
-MESSAGES = [
-    "Hi! I’m very interested in working on this order. I have strong experience in similar tasks and always ensure timely delivery with well-researched, high-quality content. Kindly consider my bid.",
-    "Hello! I’d love the opportunity to handle this paper. I have a solid academic background and make sure all my work is 100% original, polished, and aligned with the given instructions.",
-    "Greetings! I’m confident in my ability to deliver this project on time and to your expectations. I value clarity, structure, and originality in every assignment I handle.",
-    "Hi there! I’d be glad to take on this task. My writing approach combines thorough research with clear, engaging presentation. Expect professional and plagiarism-free work.",
-    "Hi, I’m enthusiastic about starting this order and confident in my ability to provide content that meets high standards. I ensure all my work is 100% original, thoughtfully crafted, and not AI-generated in any way. I appreciate your trust!",
-    "Hello! I’m well-versed in this subject and confident in delivering a properly formatted, error-free, and original paper. Quality, communication, and deadlines are always my top priorities.",
-    "Hey there! I’ve successfully handled similar assignments before. I guarantee high-quality work, deep analysis, and proper referencing to ensure your satisfaction and success.",
-    "Good day! I take pride in producing detailed, well-organized, and plagiarism-free papers. I always tailor each project to match client needs and academic requirements perfectly.",
-    "Hi! I’d love to assist with this order. My writing is 100% authentic, well-structured, and thoroughly checked before submission. You can count on me for reliability and excellence.",
-    "Hello! I’m confident my experience and attention to detail make me a great fit for this project. I’ll provide an insightful, original, and properly formatted submission right on time."
-]
+print(f"👤 Using profile: {PROFILE_NAME}")
+print(f"💬 Loaded {len(MESSAGES)} messages for this session.")
 
 
 # ==========================================================
-# UTILITIES
+# DRIVER CONFIGURATION
 # ==========================================================
-def log(msg):
-    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    entry = f"[{stamp}] {msg}"
-    print(entry)
-    with open(os.path.join(PROFILE_PATH, "activity.log"), "a", encoding="utf-8") as f:
-        f.write(entry + "\n")
 
-
-def make_driver(headless=True):
-    """Create Chrome driver with or without headless mode."""
-    os.makedirs(PROFILE_PATH, exist_ok=True)
+def make_driver(profile_path):
     chrome_options = Options()
-    chrome_options.add_argument(f"--user-data-dir={PROFILE_PATH}")
-    if headless:
-        chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--disable-notifications")
-    chrome_options.add_argument("--disable-popup-blocking")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--remote-debugging-pipe")
-    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--window-size=1366,768")
+    chrome_options.add_argument("--disable-notifications")
+    chrome_options.add_argument("--headless=new")  # remove if you want UI
+    chrome_options.add_argument(f"--user-data-dir={profile_path}")
 
-    service = Service()
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver_path = Service(r"C:\chromedriver\chromedriver.exe")
+    driver = webdriver.Chrome(service=driver_path, options=chrome_options)
     driver.set_page_load_timeout(60)
     return driver
 
 
-def save_cookies(driver):
-    pickle.dump(driver.get_cookies(), open(COOKIES_FILE, "wb"))
-    log("✅ Cookies saved.")
+# ==========================================================
+# COOKIES HANDLING
+# ==========================================================
+
+def save_cookies(driver, path):
+    with open(path, "wb") as file:
+        pickle.dump(driver.get_cookies(), file)
+
+def load_cookies(driver, path):
+    try:
+        with open(path, "rb") as file:
+            cookies = pickle.load(file)
+        for cookie in cookies:
+            if 'sameSite' in cookie and cookie['sameSite'] not in ['Strict', 'Lax', 'None']:
+                cookie['sameSite'] = 'Lax'
+            driver.add_cookie(cookie)
+        print("✅ Cookies loaded successfully.")
+    except Exception:
+        print("⚠️ No valid cookies found. Manual login required.")
 
 
-def load_cookies(driver):
-    if os.path.exists(COOKIES_FILE):
-        try:
-            cookies = pickle.load(open(COOKIES_FILE, "rb"))
-            for cookie in cookies:
-                driver.add_cookie(cookie)
-            log("✅ Loaded cookies from file.")
-            return True
-        except Exception as e:
-            log(f"⚠️ Failed to load cookies: {e}")
-    return False
+# ==========================================================
+# PROFILE SWITCHING
+# ==========================================================
 
+def switch_profile(current_name):
+    names = list(PROFILES.keys())
+    current_index = names.index(current_name)
+    next_index = (current_index + 1) % len(names)
+    new_name = names[next_index]
+    new_path = PROFILE_DIRS[new_name]
+    new_messages = PROFILES[new_name]
+    global COOKIES_FILE
+    COOKIES_FILE = os.path.join(new_path, "cookies.pkl")
+    print(f"\n🔄 Switching to profile: {new_name}")
+    return new_path, new_messages, new_name
+
+
+# ==========================================================
+# LOGIN HANDLING
+# ==========================================================
 
 def ensure_login(driver):
-    """Ensure we’re logged in — only non-headless for manual login."""
     driver.get(SITE_URL)
     time.sleep(5)
     if "login" in driver.current_url.lower():
-        log("⚠️ Not logged in. Launching visible browser for manual login...")
-        driver.quit()
-        manual_driver = make_driver(headless=False)
-        manual_driver.get(SITE_URL)
-        WebDriverWait(manual_driver, 300).until(lambda d: "available" in d.current_url.lower())
-        save_cookies(manual_driver)
-        manual_driver.quit()
-        log("✅ Login completed and cookies saved.")
-        return make_driver(headless=True)
-    else:
-        log("✅ Already logged in.")
-        return driver
-
-
-def restart_driver(driver):
-    """Restart Chrome safely when modal or repeated errors occur."""
-    try:
-        driver.quit()
-    except Exception:
-        pass
-    log("🔁 Restarting Chrome after repeated failures...")
-    new_driver = make_driver(headless=True)
-    if load_cookies(new_driver):
-        new_driver.get(SITE_URL)
-        ensure_login(new_driver)
-    else:
-        ensure_login(new_driver)
-    return new_driver
-
-
-# ==========================================================
-# MODAL HANDLER
-# ==========================================================
-def wait_for_modal(driver, timeout=25):
-    """Wait robustly for the bid modal to appear."""
-    try:
-        bid_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn-take"))
-        )
-        driver.execute_script("setTimeout(() => arguments[0].click(), 500);", bid_button)
-        log("🖱️ Clicked 'Request/Bid' button via JS.")
-
-        end_time = time.time() + timeout
-        while time.time() < end_time:
-            modals = driver.find_elements(
-                By.CSS_SELECTOR,
-                ".modal.show, .modal.fade.in, .modal[style*='display: block'], div.modal-dialog"
-            )
-            if modals:
-                modal = modals[0]
-                if modal.is_displayed():
-                    log("✅ Modal detected successfully.")
-                    return modal
-            time.sleep(0.5)
-
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        driver.save_screenshot(f"debug_modal_fail_{ts}.png")
-        log(f"⚠️ Modal not detected (screenshot: debug_modal_fail_{ts}.png)")
-        return None
-    except Exception as e:
-        log(f"❌ Modal error: {e}")
-        return None
-
-
-# ==========================================================
-# BID LOGIC
-# ==========================================================
-def place_bid(driver, order_url, message):
-    """Try placing a bid with retries."""
-    for attempt in range(1, MAX_RETRIES + 1):
+        print("🔐 Manual login required.")
         try:
-            log(f"🌀 Attempt {attempt}/{MAX_RETRIES} for {order_url}")
-            driver.get(order_url)
-            WebDriverWait(driver, 25).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".btn-take"))
-            )
-            log(f"🔍 Opened order: {order_url}")
-
-            modal = wait_for_modal(driver)
-            if not modal:
-                raise TimeoutException("Modal not detected")
-
-            time.sleep(1.5)
-            textarea = WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "textarea[name='description']"))
-            )
-            textarea.clear()
-            textarea.send_keys(message)
-            log("📝 Message entered.")
-
-            submit = driver.find_element(By.CSS_SELECTOR, "#btn-request")
-            driver.execute_script("arguments[0].click();", submit)
-            log("✅ Bid submitted successfully.")
-            return True
-
-        except Exception as e:
-            log(f"⚠️ Error during bid attempt {attempt}: {e}")
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            driver.save_screenshot(f"debug_bid_error_{ts}.png")
-            time.sleep(3)
-
-    # All retries failed
-    log(f"❌ All {MAX_RETRIES} attempts failed for {order_url}. Restarting browser...")
-    return "restart"
+            WebDriverWait(driver, 300).until_not(lambda d: "login" in d.current_url.lower())
+            save_cookies(driver, COOKIES_FILE)
+        except TimeoutException:
+            print("❌ Login timeout reached.")
 
 
 # ==========================================================
-# MAIN LOOP
+# ORDER SCANNING & BIDDING
 # ==========================================================
-def main():
-    driver = make_driver(headless=True)
-    if not load_cookies(driver):
-        log("⚠️ No cookies found, manual login required.")
-    driver = ensure_login(driver)
 
+def scan_orders(driver):
+    driver.get(SITE_URL)
+    time.sleep(random.uniform(3, 6))
+    orders = driver.find_elements(By.CSS_SELECTOR, ".table > tbody > tr")
+    print(f"🔍 Found {len(orders)} orders.")
+    return orders
+
+def place_bid(driver, order_element, message):
+    try:
+        bid_button = order_element.find_element(By.CSS_SELECTOR, ".btn.btn-success.btn-sm")
+        driver.execute_script("arguments[0].click();", bid_button)
+        time.sleep(random.uniform(1, 3))
+
+        textarea = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "textarea.form-control"))
+        )
+        textarea.clear()
+        textarea.send_keys(message)
+
+        submit_button = driver.find_element(By.CSS_SELECTOR, "button.btn.btn-primary")
+        driver.execute_script("arguments[0].click();", submit_button)
+        print(f"💰 Bid placed successfully with message: {message}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Failed to place bid: {e}")
+        return False
+
+
+# ==========================================================
+# MAIN LOGIC LOOP
+# ==========================================================
+
+def main_loop():
+    global PROFILE_PATH, MESSAGES, PROFILE_NAME
+    driver = make_driver(PROFILE_PATH)
+    ensure_login(driver)
+    load_cookies(driver, COOKIES_FILE)
+
+    failure_count = 0
     while True:
         try:
-            driver.get(SITE_URL)
-            WebDriverWait(driver, 30).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "table"))
-            )
-            log("🔄 Scanning for available orders...")
-
-            rows = driver.find_elements(By.CSS_SELECTOR, "tr")
-            order_links = []
-            for row in rows:
-                onclick = row.get_attribute("onclick")
-                if onclick and "order/" in onclick:
-                    url = "https://writer.writersadmin.com" + onclick.split("'")[1]
-                    order_links.append(url)
-
-            if not order_links:
-                log("🕒 No orders found this round.")
-            else:
-                log(f"🆕 Found {len(order_links)} order(s). Attempting bids...")
-                for order_url in order_links:
-                    message = random.choice(MESSAGES)
-                    result = place_bid(driver, order_url, message)
-                    if result == "restart":
-                        driver = restart_driver(driver)
-                        break
-                    time.sleep(random.uniform(3, 6))
-
-            wait_time = random.randint(*CHECK_INTERVAL)
-            log(f"💤 Sleeping {wait_time}s before next scan...")
-            time.sleep(wait_time)
-
-        except WebDriverException as e:
-            log(f"⚠️ Browser issue: {e}. Restarting Chrome...")
-            driver = restart_driver(driver)
-
+            orders = scan_orders(driver)
+            for order in orders:
+                message = random.choice(MESSAGES)
+                success = place_bid(driver, order, message)
+                if success:
+                    time.sleep(random.uniform(15, 30))
+            time.sleep(random.uniform(60, 120))
+        except WebDriverException:
+            print("⚠️ Browser crashed, restarting...")
+            driver.quit()
+            PROFILE_PATH, MESSAGES, PROFILE_NAME = switch_profile(PROFILE_NAME)
+            driver = make_driver(PROFILE_PATH)
+            ensure_login(driver)
+            load_cookies(driver, COOKIES_FILE)
         except Exception as e:
-            log(f"⚠️ Loop error: {e}")
-            traceback.print_exc()
-            time.sleep(10)
+            print(f"❌ Unexpected error: {e}")
+            failure_count += 1
+            if failure_count >= 3:
+                PROFILE_PATH, MESSAGES, PROFILE_NAME = switch_profile(PROFILE_NAME)
+                failure_count = 0
+        time.sleep(random.uniform(30, 60))
 
 
 if __name__ == "__main__":
-    main()
+    main_loop()
