@@ -19,41 +19,41 @@ SITE_URL = "https://writer.writersadmin.com/orders/available"
 
 PROFILE_BASE_DIR = os.path.expanduser(r"~\selenium_bid_bot_profiles")
 PROFILE_DIRS = [
-    os.path.join(PROFILE_BASE_DIR, "Python"),
+    os.path.join(PROFILE_BASE_DIR, "Paul"),
     os.path.join(PROFILE_BASE_DIR, "Wamboo")
 ]
 
 PROFILE_PATH = random.choice(PROFILE_DIRS)
 COOKIES_FILE = os.path.join(PROFILE_PATH, "cookies.pkl")
 
-CHECK_INTERVAL = (30, 45)  # seconds
+CHECK_INTERVAL = (30, 60)  # seconds
 AUTO_BID = True
-MAX_RETRIES = 3
+MAX_RETRIES = 1
 INACTIVITY_LIMIT = 120  # seconds of no new orders before switching profile
 
-MESSAGES_PYTHON = [
-    "Hi! I’m excited about this project and confident I can provide a well-structured, thoroughly researched, and plagiarism-free paper.",
+MESSAGES_PAUL = [
+    "Hi! I’m excited about this task and confident I can provide a well-structured, thoroughly researched, and plagiarism and AI free work.",
     "Hello! I’ve successfully completed similar tasks before and would love to deliver top-quality work for you within your deadline.",
     "Greetings! I approach every order with professionalism and dedication, ensuring clarity, accuracy, and originality throughout.",
-    "Hi there! I specialize in delivering clear, concise, and properly formatted academic papers that exceed client expectations.",
-    "Good day! I have vast experience handling similar topics and guarantee excellent communication and timely submission.",
-    "Hello! I take pride in crafting detailed, accurate, and well-argued academic work that’s 100% original and client-focused.",
-    "Hi! I’d be honored to work on this paper. Expect high-quality content that’s well-cited, engaging, and free from plagiarism or AI.",
-    "Hello there! My research and writing skills align perfectly with this assignment. I’ll ensure a clear structure and strong argument.",
-    "Hey! I always tailor my writing to the client’s tone and requirements while ensuring proper referencing and depth of analysis.",
-    "Hi! I can confidently handle this paper, guaranteeing a polished, well-formatted, and insightful submission that meets all standards."
+    "Hi there! I specialize in delivering clear, concise, and properly formatted work that exceed client expectations.",
+    "Good day! I have vast experience handling similar topics and guarantee excellent communication and timely submission of plagiarism and AI-free work.",
+    "Hello! I take pride in crafting detailed and accurate work that’s 100% original and done from scratch by myself. No AI involvement.",
+    "Hi! I’d be honored to work on this task. Expect high-quality content that’s free from plagiarism or AI.",
+    "Hello there! My skills align perfectly with this assignment. I’ll ensure prompt delively of plagiarism and AI-free work.",
+    "Hey! I always tailor my work to the client’s requirements while ensuring proper analysis whenever required.",
+    "Hi! I can confidently handle this, guaranteeing a polished, well-formatted, and insightful submission that meets all standards."
 ]
 
 MESSAGES_WAMBOO = [
     "Hi! I’m very interested in working on this order. I have strong experience in similar tasks and always ensure timely delivery with well-researched, high-quality content. Kindly consider my bid.",
-    "Hello! I’d love the opportunity to handle this paper. I have a solid academic background and make sure all my work is 100% original, polished, and aligned with the given instructions.",
+    "Hello! I’d love the opportunity to handle this. I have a solid background in this, and I make sure all my work is 100% original, polished, free of AI, and aligned with the given instructions.",
     "Greetings! I’m confident in my ability to deliver this project on time and to your expectations. I value clarity, structure, and originality in every assignment I handle.",
-    "Hi there! I’d be glad to take on this task. My writing approach combines thorough research with clear, engaging presentation. Expect professional and plagiarism-free work.",
-    "Hi, I’m enthusiastic about starting this order and confident in my ability to provide content that meets high standards. I ensure all my work is 100% original, thoughtfully crafted, and not AI-generated in any way. I appreciate your trust!",
-    "Hello! I’m well-versed in this subject and confident in delivering a properly formatted, error-free, and original paper. Quality, communication, and deadlines are always my top priorities.",
-    "Hey there! I’ve successfully handled similar assignments before. I guarantee high-quality work, deep analysis, and proper referencing to ensure your satisfaction and success.",
-    "Good day! I take pride in producing detailed, well-organized, and plagiarism-free papers. I always tailor each project to match client needs and academic requirements perfectly.",
-    "Hi! I’d love to assist with this order. My writing is 100% authentic, well-structured, and thoroughly checked before submission. You can count on me for reliability and excellence.",
+    "Hi there! I’d be glad to take on this task. My approach combines thorough research with clear, engaging presentation. Expect professional AI-free and plagiarism-free work.",
+    "Hi, I’m enthusiastic about starting this order and confident in my ability to provide content that meets high standards. I ensure all my work is 100% original, AI-free, thoughtfully crafted. I appreciate your trust!",
+    "Hello! I’m well-versed in this subject and confident in delivering a properly formatted, error-free, and original output. Quality, communication, and deadlines are always my top priorities.",
+    "Hey there! I’ve successfully handled similar assignments before. I guarantee high-quality work, deep analysis to ensure your satisfaction and success.",
+    "Good day! I take pride in producing detailed, well-organized, plagiarism-free, and AI-free work. I always tailor each project to match client needs and academic requirements perfectly.",
+    "Hi! I’d love to assist with this order. My work is 100% authentic, well-structured, and thoroughly checked before submission. You can count on me for reliability and excellence.",
     "Hello! I’m confident my experience and attention to detail makes me a great fit for this project. I’ll provide an insightful, original, and properly formatted submission right on time."
 ]
 
@@ -61,8 +61,8 @@ if "Wamboo" in PROFILE_PATH:
     MESSAGES = MESSAGES_WAMBOO
     PROFILE_NAME = "Wamboo"
 else:
-    MESSAGES = MESSAGES_PYTHON
-    PROFILE_NAME = "Python"
+    MESSAGES = MESSAGES_PAUL
+    PROFILE_NAME = "Paul"
 
 print(f"👤 Using profile: {PROFILE_NAME}")
 print(f"💬 Loaded {len(MESSAGES)} messages for this session.")
@@ -229,9 +229,9 @@ def place_bid(driver, order_url, message):
 def switch_profile(current_path):
     global COOKIES_FILE
     if "Wamboo" in current_path:
-        new_path = os.path.join(PROFILE_BASE_DIR, "Python")
-        new_messages = MESSAGES_PYTHON
-        new_name = "Python"
+        new_path = os.path.join(PROFILE_BASE_DIR, "Paul")
+        new_messages = MESSAGES_PAUL
+        new_name = "Paul"
     else:
         new_path = os.path.join(PROFILE_BASE_DIR, "Wamboo")
         new_messages = MESSAGES_WAMBOO
